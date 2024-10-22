@@ -2,13 +2,9 @@
 # lab03 of MYY505 - Computer Architecture
 # Department of Computer Engineering, University of Ioannina
 # Aris Efthymiou
-
-# This directive declares subroutines. Do not remove it!
 .globl rgb888_to_rgb565, showImage
-
 .data
-
-image888:  # A rainbow-like image Red->Green->Blue->Red
+image888:  
     .byte 255, 0,     0
     .byte 255,  85,   0
     .byte 255, 170,   0
@@ -37,22 +33,7 @@ image888:  # A rainbow-like image Red->Green->Blue->Red
 
 image565:
     .zero 512  # leave a 0.5Kibyte free space
-
 .text
-# -------- This is just for fun.
-# Ripes has a LED matrix in the I/O tab. To enable it:
-# - Go to the I/O tab and double click on LED Matrix.
-# - Change the Height and Width (at top-right part of I/O window),
-#     to the size of the image888 (6, 19 in this example)
-# - This will enable the LED matrix
-# - Uncomment the following and you should see the image on the LED matrix!
-#    la   a0, image888
-#    li   a1, LED_MATRIX_0_BASE
-#    li   a2, LED_MATRIX_0_WIDTH
-#    li   a3, LED_MATRIX_0_HEIGHT
-#    jal  ra, showImage
-# ----- This is where the fun part ends!
-
     la   a0, image888
     la   a3, image565
     li   a1, 19 # width
@@ -61,15 +42,6 @@ image565:
 
     addi a7, zero, 10 
     ecall
-
-# ----------------------------------------
-# Subroutine showImage
-# a0 - image to display on Ripes' LED matrix
-# a1 - Base address of LED matrix
-# a2 - Width of the image and the LED matrix
-# a3 - Height of the image and the LED matrix
-# Caution: Assumes the image and LED matrix have the
-# same dimensions!
 showImage:
     add  t0, zero, zero # row counter
 showRowLoop:
@@ -94,13 +66,61 @@ outShowColumnLoop:
     j    showRowLoop
 outShowRowLoop:
     jalr zero, ra, 0
-
-# ----------------------------------------
-
 rgb888_to_rgb565:
-# ----------------------------------------
-# Write your code here.
-# You may move the "return" instruction (jalr zero, ra, 0).
+    add  t0, zero, zero # row counter
+rowLoop:
+    bge  t0, a2, outRowLoop
+    add  t1, zero, zero # column counter
+columnLoop:
+    bge  t1, a1, outColumnLoop
+    lbu  t2, 0(a0)   # r
+    lbu  t3, 1(a0)   # g
+    lbu  t4, 2(a0)   # b
+    andi t2, t2, 0xf8   # clear 3 lsbs
+    slli t2, t2, 8      # shift to final place of R in RGB565 format
+    andi t3, t3, 0xfc   # clear 2 lsbs
+    slli t3, t3, 3      # shift to final place of G in RGB565 format
+    srli t4, t4, 3      # remove 3 lsbs of blue
+    or   t2, t2, t3
+    or   t2, t2, t4
+    sh   t2, 0(a3)   # store 16bits (half word) in RGB565 format to output
+    addi a0, a0, 3   # move input pointer to next pixel
+    addi a3, a3, 2   # move ouput pointer to next pixel
+    addi t1, t1, 1
+    j    columnLoop
+outColumnLoop:
+    addi t0, t0, 1
+    j    rowLoop
+outRowLoop:
     jalr zero, ra, 0
+rgb565_to_rgb888:
+    add  t0, zero, zero # row counter
+rowl:
+    bge  t0, a2, outRowl
+    add  t1, zero, zero # column counter
+columnl:
+    bge  t1, a1, outColumnl
+    lhu  t2, 0(a0)
+    srli t3, t2, 8  # extract red (3 lsbs still from green)
+    andi t3, t3, 0xf8 # clear 3 lsbs
+    sb   t3, 0(a3) # store in out image
+    srli t3, t2, 3  # extract green (2 lsbs still from blue)
+    andi t3, t3, 0xfc # clear 2 lsbs
+    sb   t3, 1(a3) # store in out image
+    slli t3, t2, 3
+    andi t3, t3, 0xf8 # clear 3 lsbs
+    sb   t3, 3(a3) # store in out image
+    addi a0, a0, 2   # move input pointer to next pixel
+    addi a3, a3, 3   # move ouput pointer to next pixel
+    addi t1, t1, 1
+    j    columnl
+outColumnl:
+    addi t0, t0, 1
+    j    rowl
+outRowl:
+    jalr zero, ra, 0
+
+
+ 
 
 
